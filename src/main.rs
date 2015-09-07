@@ -24,23 +24,39 @@ impl Table {
             outt: [0u64;256],
         };
 
+        t.outt = Table::generate_outt(POLYNOMIAL, WINSIZE);
+        t.modt = Table::generate_modt(POLYNOMIAL);
+
+        return t;
+    }
+
+    fn generate_outt(pol: u64, winsize: usize) -> [u64;256] {
+        let mut outt = [0u64;256];
+
         for b in 0usize .. 256 {
             let mut hash = 0u64;
 
-            hash = Table::append_byte(hash, b as u8, POLYNOMIAL);
-            for _ in 0 .. (WINSIZE-1) {
-                hash = Table::append_byte(hash, 0, POLYNOMIAL);
+            hash = Table::append_byte(hash, b as u8, pol);
+            for _ in 0 .. (winsize-1) {
+                hash = Table::append_byte(hash, 0, pol);
             }
-            t.outt[b as usize] = hash;
+            outt[b as usize] = hash;
         }
 
-        let k = Table::deg(POLYNOMIAL);
+        return outt;
+    }
+
+    fn generate_modt(pol: u64) -> [u64;256] {
+        let mut modt = [0u64;256];
+
+        let k = Table::deg(pol);
+
         for b in 0usize .. 256 {
-            t.modt[b] = Table::modulo(((b << k) as u64), POLYNOMIAL);
-            t.modt[b] |= (b << k) as u64;
+            modt[b] = Table::modulo(((b << k) as u64), pol);
+            modt[b] |= (b << k) as u64;
         }
 
-        return t;
+        return modt;
     }
 
     fn deg(p: u64) -> i64 {
