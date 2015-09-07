@@ -1,4 +1,6 @@
 
+#![feature(test)]
+
 use std::io::{stdin, Read};
 use std::fmt;
 
@@ -276,4 +278,27 @@ fn main() {
     }
 
     println!("{} chunks, average chunk size {}, sum(chunk.len)={}", chunks, avg, calc_length);
+}
+
+#[cfg(test)]
+mod test {
+    extern crate test;
+
+    use super::*;
+
+    #[bench]
+    fn bench_refimpl_outt(b: &mut test::Bencher) {
+        let mut x = [0u64;256];
+        b.iter(|| {
+            x = ::Table::generate_outt(::POLYNOMIAL, ::WINSIZE);
+        })
+    }
+
+    #[bench]
+    fn bench_refimpl_modt(b: &mut test::Bencher) {
+        let mut x = [0u64;256];
+        b.iter(|| {
+            x = ::Table::generate_modt(::POLYNOMIAL);
+        })
+    }
 }
