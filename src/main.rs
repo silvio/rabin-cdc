@@ -32,6 +32,7 @@ impl Table {
         return t;
     }
 
+    /* reference implementation ***********************************************/
     fn generate_outt(pol: u64, winsize: usize) -> [u64;256] {
         let mut outt = [0u64;256];
 
@@ -91,6 +92,67 @@ impl Table {
         out |= b as u64;
 
         return Table::modulo(out, pol);
+    }
+
+    /* fast implementation ****************************************************/
+    fn generate_outt_fast(pol: u64, winsize: usize) -> [u64;256] {
+        let mut outt = [0u64;256];
+
+        let mut hash = 0u64;
+        for b in 0usize .. 256 {
+            hash = Table::append_byte_fast(&hash, &(b as u8), &pol);
+            for _ in 0 .. (winsize-1) {
+                hash = Table::append_byte_fast(&hash, &0, &pol);
+            }
+            outt[b as usize] = hash;
+        }
+
+        return outt;
+    }
+
+    fn generate_modt_fast(pol: u64) -> [u64;256] {
+        let mut modt = [0u64;256];
+
+        let k = Table::deg_fast(&pol);
+
+        for b in 0usize .. 256 {
+            modt[b] = Table::modulo_fast(&((b << k) as u64), &pol);
+            modt[b] |= (b << k) as u64;
+        }
+
+        return modt;
+    }
+
+    fn deg_fast(p: &u64) -> i64 {
+        let mut mask = 0x8000000000000000u64;
+        for i in 0 .. 64 {
+            if (mask & *p) > 0 {
+                return 63-i;
+            }
+
+            mask >>= 1;
+        }
+
+        return -1;
+    }
+
+    fn modulo_fast(x: &u64, p: &u64) -> u64 {
+        let mut out = *x;
+        while Table::deg_fast(&out) >= Table::deg_fast(p) {
+            let shift = Table::deg_fast(&out) - Table::deg_fast(p);
+            out = out ^ (*p << shift);
+        }
+
+        return out;
+    }
+
+    fn append_byte_fast(hash: &u64, b: &u8, pol: &u64) -> u64 {
+        let mut out = *hash;
+
+        out <<= 8 as u64;
+        out |= *b as u64;
+
+        return Table::modulo_fast(&out, pol);
     }
 }
 
@@ -299,6 +361,22 @@ mod test {
         let mut x = [0u64;256];
         b.iter(|| {
             x = ::Table::generate_modt(::POLYNOMIAL);
+        })
+    }
+
+    #[bench]
+    fn bench_fasimpl_outt(b: &mut test::Bencher) {
+        let mut x = [0u64;256];
+        b.iter(|| {
+            x = ::Table::generate_outt_fast(::POLYNOMIAL, ::WINSIZE);
+        })
+    }
+
+    #[bench]
+    fn bench_fasimpl_modt(b: &mut test::Bencher) {
+        let mut x = [0u64;256];
+        b.iter(|| {
+            x = ::Table::generate_modt_fast(::POLYNOMIAL);
         })
     }
 }
