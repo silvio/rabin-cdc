@@ -2,9 +2,13 @@
 all: build run
 
 build:
-	cargo build
+	cargo rustc -- -O -g
+
+release:
+	cargo rustc --release -- -g
 
 bench:
+	$(shell ./setup.sh)
 	cargo bench
 
 run:

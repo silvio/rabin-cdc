@@ -285,6 +285,9 @@ mod test {
     extern crate test;
 
     use super::*;
+    use std::path::Path;
+    use std::fs::File;
+    use std::io::Read;
 
     #[bench]
     fn bench_refimpl_outt(b: &mut test::Bencher) {
@@ -301,4 +304,86 @@ mod test {
             x = ::Table::generate_modt(::POLYNOMIAL);
         })
     }
+
+    #[bench]
+    fn bench_refimpl_a(b: &mut test::Bencher) {
+        // better run this before: dd if=/dev/urandom of=test.data  count=50 bs=1M
+        let path = Path::new("/tmp/test.data");
+        let f = File::open(&path);
+        let mut buf_obj: Vec<u8> = Vec::new();
+        let len = match f.unwrap().read_to_end(&mut buf_obj) {
+            Ok(t) => { t },
+            Err(why) => { panic!(why) },
+        };
+
+        b.iter(|| {
+            let t = ::Table::new();
+            let mut r = ::Rabin::new(&t);
+            let mut chunks = 0usize;
+            let mut calc_length = 0usize;
+            let bytes = buf_obj.len();
+            let mut start = 0usize;
+
+            loop {
+                let (chunk, remaining) = r.rabin_next_chunk(&buf_obj, start);
+                if remaining < 0 {
+                    break;
+                }
+
+                start = remaining as usize;
+                calc_length += chunk.length;
+
+                chunks += 1;
+            }
+
+            let mut last_chunk = false;
+            let chunk = match r.rabin_finalize() {
+                Some(c) => { chunks += 1; last_chunk = true; c },
+                None => { ::Chunk::new() },
+            };
+
+            // verify correctness
+            //println!("{:7} {:016x}", chunk.length, chunk.cutfp);
+        })
+    }
+
+    #[bench]
+    fn bench_refimpl_b(b: &mut test::Bencher) {
+        let path = Path::new("/tmp/test.data");
+        let f = File::open(&path);
+        let mut buf_obj: Vec<u8> = Vec::new();
+        let len = match f.unwrap().read_to_end(&mut buf_obj) {
+            Ok(t) => { t },
+            Err(why) => { panic!(why) },
+        };
+
+        let t = ::Table::new();
+        let mut r = ::Rabin::new(&t);
+        let mut chunks = 0usize;
+        let mut calc_length = 0usize;
+
+        let bytes = buf_obj.len();
+        let mut start = 0usize;
+
+        b.iter(|| {
+            loop {
+                let (chunk, remaining) = r.rabin_next_chunk(&buf_obj, start);
+                if remaining < 0 {
+                    break;
+                }
+
+                start = remaining as usize;
+                calc_length += chunk.length;
+
+                chunks += 1;
+            }
+
+            let mut last_chunk = false;
+            let chunk = match r.rabin_finalize() {
+                Some(c) => { chunks += 1; last_chunk = true; c },
+                None => { ::Chunk::new() },
+            };
+        })
+    }
+
 }
